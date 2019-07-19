@@ -53,8 +53,6 @@ if(CEF_CMAKE_OS_WINDOWS)
         ${CMAKE_CURRENT_LIST_DIR}/../res/win/cef.exe.manifest
         ${CMAKE_CURRENT_LIST_DIR}/../res/win/compatibility.manifest
     )
-elseif(CEF_CMAKE_OS_MACOSX)
-    message(FATAL_ERROR "CEF-CMake: Executable resources for platform not supported yet")
 else()
     set(CEF_CMAKE_EXECUTABLE_RESOURCES)
 endif()

@@ -39,6 +39,8 @@ elseif(CEF_CMAKE_OS_WINDOWS)
     else()
         set(cefName cef_binary_${CEF_VERSION}_windows32)
     endif()
+elseif(CEF_CMAKE_OS_MACOSX)
+    set(cefName cef_binary_${CEF_VERSION}_macosx64)
 else()
     message(FATAL_ERROR "CEF-CMake: Download platform not supported yet")
 endif()
@@ -65,6 +67,7 @@ endif()
 
 set(srcs)
 set(wdir ${cefName}/libcef_dll)
+message(STATUS ${cefName})
 file(GLOB_RECURSE srcs "${wdir}/*.cc" "${wdir}/*.mm" "${wdir}/*.h" "${cefName}/include/*.h")
 
 add_library(cefdll_wrapper STATIC ${srcs})
@@ -80,26 +83,43 @@ target_compile_definitions(cefdll_wrapper
         -D__STDC_FORMAT_MACROS
 )
 
+if(CEF_USE_SANDBOX)
+    target_compile_definitions(cefdll_wrapper
+        PUBLIC -DCEF_USE_SANDBOX
+    )
+endif()
+
 target_include_directories(cefdll_wrapper
-    PUBLIC ${cefName}
+    PUBLIC ${cefName} ${cefName}/include
 )
 
-add_custom_command(TARGET cefdll_wrapper POST_BUILD
-    COMMENT "cefdll_wrapper: Copying CEF resources"
+if(CEF_CMAKE_OS_MACOSX)
+    add_custom_command(TARGET cefdll_wrapper POST_BUILD
+    COMMENT "cefdll_wrapper: Copying CEF Framework"
     COMMAND ${CMAKE_COMMAND} -E
         make_directory ${CEF_CMAKE_OUTPUT_DIR}
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/locales
-        ${CEF_CMAKE_OUTPUT_DIR}/locales
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef.pak
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef_100_percent.pak
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef_200_percent.pak
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef_extensions.pak
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/devtools_resources.pak
-        ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/icudtl.dat
-        ${CEF_CMAKE_OUTPUT_DIR}
-)
+        "${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/$<CONFIG>/Chromium Embedded Framework.framework"
+        "${CEF_CMAKE_OUTPUT_DIR}/Chromium Embedded Framework.framework"
+    )
+else()
+    add_custom_command(TARGET cefdll_wrapper POST_BUILD
+        COMMENT "cefdll_wrapper: Copying CEF resources"
+        COMMAND ${CMAKE_COMMAND} -E
+            make_directory ${CEF_CMAKE_OUTPUT_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/locales
+            ${CEF_CMAKE_OUTPUT_DIR}/locales
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef.pak
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef_100_percent.pak
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef_200_percent.pak
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/cef_extensions.pak
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/devtools_resources.pak
+            ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Resources/icudtl.dat
+            ${CEF_CMAKE_OUTPUT_DIR}
+    )
+endif()
 
 if(CEF_CMAKE_OS_LINUX)
     target_link_libraries(cefdll_wrapper INTERFACE
@@ -189,7 +209,12 @@ elseif(CEF_CMAKE_OS_WINDOWS)
             optimized ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Release/cef_sandbox.lib
         )
     endif()
-
+elseif(CEF_CMAKE_OS_MACOSX)
+    target_link_libraries(cefdll_wrapper PUBLIC 
+        debug ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Debug/cef_sandbox.a
+        optimized ${CMAKE_CURRENT_SOURCE_DIR}/${cefName}/Release/cef_sandbox.a
+    )
+    # ?
 else()
     # TODO: Copy macos shared libraries
     message(FATAL_ERROR "CEF-CMake: Build platform not supported yet")
